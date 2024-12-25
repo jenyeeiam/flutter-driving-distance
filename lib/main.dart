@@ -35,7 +35,20 @@ class _MyHomePageState extends State<MyHomePage> {
   double _totalDistance = 0.0;
   Position? _lastPosition;
 
-  void _startTracking() {
+  void _startTracking() async {
+    LocationPermission permission = await Geolocator.checkPermission();
+    
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+    }
+
+    if (permission == LocationPermission.deniedForever) {
+      // Permissions are denied forever, handle appropriately
+      // You can show a dialog or a message to the user
+      return;
+    }
+
+    // If we have permission, start tracking
     setState(() {
       _isTracking = true;
       _totalDistance = 0.0;
@@ -85,7 +98,7 @@ class _MyHomePageState extends State<MyHomePage> {
               style: Theme.of(context).textTheme.headlineSmall,
             ),
             Text(
-              '${_totalDistance.toStringAsFixed(2)} meters',
+              '${(_totalDistance / 1000).toStringAsFixed(2)} kilometers',
               style: Theme.of(context).textTheme.headlineMedium,
             ),
             const SizedBox(height: 20),
