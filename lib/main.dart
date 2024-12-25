@@ -2,16 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 
 void main() {
-  runApp(const MyApp());
+  runApp(const MileageTracker());
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+class MileageTracker extends StatelessWidget {
+  const MileageTracker({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Driving Distance Calculator',
+      debugShowCheckedModeBanner: false,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
         useMaterial3: true,
