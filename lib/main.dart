@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
+import 'dart:async';
 
 void main() {
   runApp(const MileageTracker());
@@ -35,6 +36,7 @@ class _MyHomePageState extends State<MyHomePage> {
   bool _isTracking = false;
   double _totalDistance = 0.0;
   Position? _lastPosition;
+  StreamSubscription<Position>? _positionStreamSubscription; // Add this line
 
   void _startTracking() async {
     LocationPermission permission = await Geolocator.checkPermission();
@@ -75,12 +77,42 @@ class _MyHomePageState extends State<MyHomePage> {
       }
       _lastPosition = position;
     });
+
+    // Start listening to position updates
+    _positionStreamSubscription = Geolocator.getPositionStream(
+      locationSettings: const LocationSettings(
+        accuracy: LocationAccuracy.high,
+        distanceFilter: 10,
+      ),
+    ).listen((Position position) {
+      if (_lastPosition != null) {
+        double distance = Geolocator.distanceBetween(
+          _lastPosition!.latitude,
+          _lastPosition!.longitude,
+          position.latitude,
+          position.longitude,
+        );
+        setState(() {
+          _totalDistance += distance;
+        });
+      }
+      _lastPosition = position;
+    });
   }
 
   void _stopTracking() {
     setState(() {
       _isTracking = false;
     });
+    // Cancel the subscription if it's active
+    _positionStreamSubscription?.cancel();
+    _positionStreamSubscription = null; // Reset the subscription
+  }
+
+  @override
+  void dispose() {
+    _stopTracking(); // Stop tracking when the widget is disposed
+    super.dispose();
   }
 
   @override
