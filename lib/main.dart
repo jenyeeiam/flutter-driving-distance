@@ -36,46 +36,22 @@ class _MyHomePageState extends State<MyHomePage> {
   bool _isTracking = false;
   double _totalDistance = 0.0;
   Position? _lastPosition;
-  StreamSubscription<Position>? _positionStreamSubscription; // Add this line
+  StreamSubscription<Position>? _positionStreamSubscription;
 
   void _startTracking() async {
     LocationPermission permission = await Geolocator.checkPermission();
-    
+
     if (permission == LocationPermission.denied) {
       permission = await Geolocator.requestPermission();
     }
 
     if (permission == LocationPermission.deniedForever) {
       // Permissions are denied forever, handle appropriately
-      // You can show a dialog or a message to the user
       return;
     }
 
-    // If we have permission, start tracking
     setState(() {
       _isTracking = true;
-      _totalDistance = 0.0;
-      _lastPosition = null; // Reset the last position
-    });
-
-    Geolocator.getPositionStream(
-      locationSettings: const LocationSettings(
-        accuracy: LocationAccuracy.high,
-        distanceFilter: 10, // Update only after moving 10 meters
-      ),
-    ).listen((Position position) {
-      if (_lastPosition != null) {
-        double distance = Geolocator.distanceBetween(
-          _lastPosition!.latitude,
-          _lastPosition!.longitude,
-          position.latitude,
-          position.longitude,
-        );
-        setState(() {
-          _totalDistance += distance;
-        });
-      }
-      _lastPosition = position;
     });
 
     // Start listening to position updates
@@ -85,7 +61,7 @@ class _MyHomePageState extends State<MyHomePage> {
         distanceFilter: 10,
       ),
     ).listen((Position position) {
-      if (_lastPosition != null) {
+      if (_isTracking && _lastPosition != null) {
         double distance = Geolocator.distanceBetween(
           _lastPosition!.latitude,
           _lastPosition!.longitude,
@@ -104,14 +80,23 @@ class _MyHomePageState extends State<MyHomePage> {
     setState(() {
       _isTracking = false;
     });
-    // Cancel the subscription if it's active
+    // Cancel the subscription but keep the last position
+    _positionStreamSubscription?.pause();
+  }
+
+  void _clearTracking() {
+    setState(() {
+      _isTracking = false;
+      _totalDistance = 0.0;
+      _lastPosition = null;
+    });
     _positionStreamSubscription?.cancel();
     _positionStreamSubscription = null; // Reset the subscription
   }
 
   @override
   void dispose() {
-    _stopTracking(); // Stop tracking when the widget is disposed
+    _positionStreamSubscription?.cancel();
     super.dispose();
   }
 
@@ -138,6 +123,11 @@ class _MyHomePageState extends State<MyHomePage> {
             ElevatedButton(
               onPressed: _isTracking ? _stopTracking : _startTracking,
               child: Text(_isTracking ? 'Stop Tracking' : 'Start Tracking'),
+            ),
+            const SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: _clearTracking,
+              child: const Text('Clear Tracker'),
             ),
           ],
         ),
