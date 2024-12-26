@@ -1,8 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:googleapis/sheets/v4.dart' as sheets;
+import 'package:googleapis_auth/auth_io.dart';
 import 'dart:async';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import 'google_sheets_helper.dart';
+import 'google_credentials.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
-void main() {
+void main() async {
+  await dotenv.load(fileName: ".env");
   runApp(const MileageTracker());
 }
 
@@ -35,6 +43,7 @@ class MyHomePage extends StatefulWidget {
 class _MyHomePageState extends State<MyHomePage> {
   bool _isTracking = false;
   double _totalDistance = 0.0;
+  double _distanceDuringPause = 0.0; // Hold paused distance
   Position? _lastPosition;
   StreamSubscription<Position>? _positionStreamSubscription;
 
@@ -52,6 +61,8 @@ class _MyHomePageState extends State<MyHomePage> {
 
     setState(() {
       _isTracking = true;
+      _distanceDuringPause = 0.0; // Reset paused distance
+      _lastPosition = null; // Reset the last position
     });
 
     // Start listening to position updates
@@ -79,8 +90,8 @@ class _MyHomePageState extends State<MyHomePage> {
   void _stopTracking() {
     setState(() {
       _isTracking = false;
+      _distanceDuringPause = 0.0; // Reset the paused distance
     });
-    // Cancel the subscription but keep the last position
     _positionStreamSubscription?.pause();
   }
 
@@ -91,7 +102,36 @@ class _MyHomePageState extends State<MyHomePage> {
       _lastPosition = null;
     });
     _positionStreamSubscription?.cancel();
-    _positionStreamSubscription = null; // Reset the subscription
+    _positionStreamSubscription = null;
+  }
+
+  // Function to add a new row to Google Sheet
+  void _addRowToGoogleSheet() async {
+    // Initialize the helper
+    final googleSheetsHelper = GoogleSheetsHelper(
+      spreadsheetId: GoogleCredentials.spreadsheetId,  // Use the ID from GoogleCredentials
+    );
+
+    // Format the date and round kilometers
+    final today = DateTime.now();
+    final formattedDate = "${today.month.toString().padLeft(2, '0')}/${today.day.toString().padLeft(2, '0')}/${today.year}";
+    final roundedKilometers = (_totalDistance / 1000).ceil();
+
+    // Append the row
+    try {
+      await googleSheetsHelper.appendRow([formattedDate, roundedKilometers]);
+
+      // Notify the user of success
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Data saved to Google Sheet!")),
+      );
+    } catch (e) {
+      // Handle errors
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Failed to save data to Google Sheet!")),
+      );
+      print(e);
+    }
   }
 
   @override
@@ -128,6 +168,11 @@ class _MyHomePageState extends State<MyHomePage> {
             ElevatedButton(
               onPressed: _clearTracking,
               child: const Text('Clear Tracker'),
+            ),
+            const SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: _addRowToGoogleSheet,
+              child: const Text('Save to Google Sheet'),
             ),
           ],
         ),
